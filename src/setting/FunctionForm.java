@@ -292,52 +292,6 @@ public class FunctionForm extends javax.swing.JInternalFrame {
 
     private void formInternalFrameOpened(javax.swing.event.InternalFrameEvent evt) {//GEN-FIRST:event_formInternalFrameOpened
         // TODO add your handling code here:
-        // test = new org.jdesktop.swingx.treetable.FileSystemModel();
-/*
-dbc = new connect.DBConnection();
-                preparedStatement = dbc.prepareStatement("select * from buds.test_fpp ORDER BY ppa_level,codes");
-                ResultSet rs = preparedStatement.executeQuery();
-                int ctrow = 0;
-                while(rs.next()){
-                    ctrow=rs.getRow();
-                }
-                rs.close();
-
-                Object[][] table = new Object[ctrow][3];
-
-                int row = 0;
-                ResultSet rs1 = preparedStatement.executeQuery();
-                while (rs1.next()) {
-                    table[row][0] = rs1.getInt("ppa_uid");
-                    table[row][1] = rs1.getInt("parent_id");
-                    table[row][2] = rs1.getString("ppa_codes").trim() + (rs1.getInt("ppa_level")==0?"":"~") + rs1.getString("description");
-                    row++;
-                }
-                rs1.close();
-                preparedStatement.close();
-
-                //Create as many nodes as there are rows of data.
-                DefaultMutableTreeNode[] node = new DefaultMutableTreeNode[table.length];
-                for (int i = 0; i < table.length; i++) {
-                    node[i] = new DefaultMutableTreeNode(table[i][2].toString());
-                    node[0]=new DefaultMutableTreeNode("");
-                }
-
-                rootNode =node[0];   //Set the root node
-
-                //Cycle through the table above and assign nodes to nodes
-                for (int i = 0; i < table.length; i++) {
-                    for (int j = 1; j < table.length; j++) {
-                        if (table[i][0].toString() .equals(table[j][1].toString())) {
-                            node[i].add(node[j]);
-                        }
-                    }
-                }
-                
-                //Creating the tree model. setting the root node.
-                treeModel = new DefaultTreeModel(rootNode);
-                treeFPP.setModel(treeModel);
-*/
         Lista.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
             @Override
             public void valueChanged(javax.swing.event.ListSelectionEvent lse) {
@@ -389,7 +343,10 @@ dbc = new connect.DBConnection();
     }//GEN-LAST:event_formInternalFrameOpened
 
     private void reLoad() {
-        String sqlCommand = 
+        java.util.Calendar cals = java.util.Calendar.getInstance();
+        cals.setTime(new java.text.SimpleDateFormat("yyyy-MM-dd").parse(System.getProperty("PETSAH"), new java.text.ParsePosition(0)));
+        short tuig = (short)cals.get(java.util.Calendar.YEAR);
+        String sqlCommand =
                 "SELECT " +
                     "funds_id, " +
                     "services, " +
@@ -400,7 +357,8 @@ dbc = new connect.DBConnection();
                 "FROM " +
                     "buds.fund_control " +
                 "WHERE " +
-                    "(programs = 0) " +
+                    "(programs = 0) AND " +
+                    "(years = " + tuig + ") " +
                 "ORDER BY " +
                     "funds_id, services, resp_id, resp_sub, programs";
         try (java.sql.Connection jdbc = new budget.DBaseLink();
@@ -748,31 +706,36 @@ dbc = new connect.DBConnection();
         int index = tblFunds.getSelectedRow();
         index = tblFunds.convertRowIndexToModel(index);
         
+        java.util.Calendar cals = java.util.Calendar.getInstance();
+        cals.setTime(new java.text.SimpleDateFormat("yyyy-MM-dd").parse(System.getProperty("PETSAH"), new java.text.ParsePosition(0)));
+        short tuig = (short)cals.get(java.util.Calendar.YEAR);
+
         javax.swing.table.DefaultTableModel modelo = (javax.swing.table.DefaultTableModel)tblFunds.getModel();
         String id_code = modelo.getValueAt(index, 2).toString(),
                 sqlCmd = 
                 "SELECT " +
-                    "fund_central.offices, " +
-                    "fund_control.years " +
+                    "0 " +
                 "FROM " +
-                    "buds.fund_central JOIN buds.fund_control " +
-                    "ON fund_central.centre_uid SSS= fund_control.centre_uid " +
+                    "temp.prep_appropriation " +
                 "WHERE " +
-                    "(fund_central.centre_uid = '" + id_code + "')";
+                    "(fpp_code LIKE '" + id_code + "%') AND " +
+                    "(years = " + tuig + ")";
         try (java.sql.Connection jdbc = new budget.DBaseLink();
                 java.sql.Statement stmt = jdbc.createStatement(java.sql.ResultSet.TYPE_SCROLL_INSENSITIVE, java.sql.ResultSet.CONCUR_READ_ONLY);
-                java.sql.PreparedStatement ptmt = jdbc.prepareStatement("DELETE FROM buds.fund_control WHERE (centre_uid = ?)");
-                java.sql.PreparedStatement utmt = jdbc.prepareStatement("UPDATE buds.fund_control SET tagoonz = TRUE WHERE (centre_uid = ?)");
+                java.sql.PreparedStatement ptmt = jdbc.prepareStatement("DELETE FROM buds.fund_control WHERE (centre_uid = ?) AND (years = ?)");
+                //java.sql.PreparedStatement utmt = jdbc.prepareStatement("UPDATE buds.fund_control SET tagoonz = TRUE WHERE (centre_uid = ?)");
                 java.sql.ResultSet rst = stmt.executeQuery(sqlCmd)) {
             if (rst.next()) {
-                utmt.setString(1, id_code);
-                utmt.executeUpdate();
+                //utmt.setString(1, id_code);
+                //utmt.executeUpdate();
+                javax.swing.JOptionPane.showMessageDialog(this, "Cannot delete selected item because its been used already.", title, javax.swing.JOptionPane.WARNING_MESSAGE);
             } else {
                 ptmt.setString(1, id_code);
+                ptmt.setShort (2, tuig);
                 ptmt.executeUpdate();
+                modelo.removeRow(index);
+                reLoad();
             }
-            modelo.removeRow(index);
-            reLoad();
 
 
         } catch (Exception ex) {
